@@ -17,10 +17,10 @@ if [[ ! -f litellm/config.yaml ]]; then
   exit 1
 fi
 
-echo "Starting AI Gateway stack..."
+echo "Starting LiteLLM + Langfuse..."
 docker compose up -d
 
-echo "Stack is running."
+echo "LiteLLM and Langfuse: Running."
 echo "  LiteLLM Proxy:   http://localhost:4000"
 echo "  LiteLLM Admin:   http://localhost:4000/ui"
 echo "  Langfuse:        http://localhost:5002"
