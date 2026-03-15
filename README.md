@@ -64,6 +64,31 @@ chmod +x scripts/*.sh
 
 <br>
 
+## First-Time Setup
+
+After `./scripts/start.sh` completes:
+
+<table>
+  <tr>
+    <td><strong>1</strong></td>
+    <td>Go to <a href="http://localhost:5002">localhost:5002</a> — sign up, create an org and project</td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td>Settings → API Keys → Create. Copy <code>pk-lf-...</code> and <code>sk-lf-...</code> into <code>.env</code></td>
+  </tr>
+  <tr>
+    <td><strong>3</strong></td>
+    <td>Run <code>docker compose up -d</code> to pick up the new keys</td>
+  </tr>
+  <tr>
+    <td><strong>4</strong></td>
+    <td>Go to <a href="http://localhost:4000/ui">localhost:4000/ui</a> → Virtual Keys → create per-tool keys with descriptive aliases</td>
+  </tr>
+</table>
+
+<br>
+
 ## Features
 
 <table>
@@ -194,31 +219,6 @@ flowchart TD
       <td><code>:9090</code> <code>:9091</code></td>
     </tr>
   </tbody>
-</table>
-
-<br>
-
-## First-Time Setup
-
-After `./scripts/start.sh` completes:
-
-<table>
-  <tr>
-    <td><strong>1</strong></td>
-    <td>Go to <a href="http://localhost:5002">localhost:5002</a> — sign up, create an org and project</td>
-  </tr>
-  <tr>
-    <td><strong>2</strong></td>
-    <td>Settings → API Keys → Create. Copy <code>pk-lf-...</code> and <code>sk-lf-...</code> into <code>.env</code></td>
-  </tr>
-  <tr>
-    <td><strong>3</strong></td>
-    <td>Run <code>docker compose up -d</code> to pick up the new keys</td>
-  </tr>
-  <tr>
-    <td><strong>4</strong></td>
-    <td>Go to <a href="http://localhost:4000/ui">localhost:4000/ui</a> → Virtual Keys → create per-tool keys with descriptive aliases</td>
-  </tr>
 </table>
 
 <br>
