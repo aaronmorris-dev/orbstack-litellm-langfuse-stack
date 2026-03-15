@@ -105,47 +105,30 @@ chmod +x scripts/*.sh
 
 ```mermaid
 flowchart TD
-    CLI["🖥️ CLI Tools<br><sub>Claude Code · Gemini CLI · OpenAI SDK</sub>"]
+    CLI["🖥️ CLI Tools\nClaude Code · Gemini CLI · OpenAI SDK"]
 
     CLI -->|":4000 · :5002"| Caddy
 
-    subgraph stack[" Docker Compose Stack "]
-        Caddy["🔀 Caddy<br><sub>Reverse Proxy · SSE Streaming</sub>"]
+    subgraph compose[" Docker Compose Stack "]
+        Caddy["🔀 Caddy\nReverse Proxy · SSE"]
 
-        Caddy --> LiteLLM
-        Caddy --> Langfuse
-
-        LiteLLM["⚙️ LiteLLM<br><sub>Unified LLM Proxy</sub>"]
-        Langfuse["📊 Langfuse<br><sub>Observability UI</sub>"]
-        Worker["⚙️ Langfuse Worker<br><sub>Background Processing</sub>"]
+        Caddy --> LiteLLM["⚙️ LiteLLM\nUnified LLM Proxy"]
+        Caddy --> Langfuse["📊 Langfuse\nObservability"]
 
         LiteLLM -.->|"OTEL traces"| Langfuse
+        Worker["⚙️ Langfuse Worker"]
 
-        LiteLLM --> PG
-        LiteLLM --> Redis
-        Langfuse --> data
-        Worker --> data
+        LiteLLM --> PG & Redis
+        Langfuse & Worker --> PG & CH & Redis & MinIO
 
-        subgraph data[" Data Layer "]
-            direction LR
-            PG[("PostgreSQL 17")]
-            CH[("ClickHouse 26")]
-            Redis[("Redis 7.4")]
-            MinIO[("MinIO")]
-            PG ~~~ CH ~~~ Redis ~~~ MinIO
-        end
+        PG[("PostgreSQL 17")]
+        CH[("ClickHouse 26")]
+        Redis[("Redis 7.4")]
+        MinIO[("MinIO")]
+        PG ~~~ CH ~~~ Redis ~~~ MinIO
     end
 
-    LiteLLM --> providers
-
-    subgraph providers[" ☁️ LLM Providers "]
-        direction LR
-        Bedrock["AWS Bedrock"]
-        Vertex["Vertex AI"]
-        Gemini["Gemini API"]
-        OAI["OpenAI"]
-        Anth["Anthropic"]
-    end
+    LiteLLM --> Providers["☁️ Bedrock · Vertex AI · Gemini · OpenAI · Anthropic"]
 ```
 
 <br>
