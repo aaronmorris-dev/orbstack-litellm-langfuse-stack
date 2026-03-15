@@ -104,45 +104,46 @@ chmod +x scripts/*.sh
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph Client["🖥️ Your Machine"]
-        CLI["CLI Tools<br><sub>Claude Code · Gemini CLI · OpenAI SDK</sub>"]
-    end
+flowchart TD
+    CLI["🖥️ CLI Tools<br><sub>Claude Code · Gemini CLI · OpenAI SDK</sub>"]
 
-    subgraph Stack["Docker Compose Stack"]
+    CLI -->|":4000 · :5002"| Caddy
+
+    subgraph stack[" Docker Compose Stack "]
         Caddy["🔀 Caddy<br><sub>Reverse Proxy · SSE Streaming</sub>"]
+
+        Caddy --> LiteLLM
+        Caddy --> Langfuse
+
         LiteLLM["⚙️ LiteLLM<br><sub>Unified LLM Proxy</sub>"]
         Langfuse["📊 Langfuse<br><sub>Observability UI</sub>"]
         Worker["⚙️ Langfuse Worker<br><sub>Background Processing</sub>"]
-        PG["🐘 PostgreSQL 17<br><sub>Metadata</sub>"]
-        CH["📦 ClickHouse 26<br><sub>Trace Storage</sub>"]
-        Redis["⚡ Redis 7.4<br><sub>Cache + Queue</sub>"]
-        MinIO["🪣 MinIO<br><sub>Object Storage</sub>"]
+
+        LiteLLM -.->|"OTEL traces"| Langfuse
+
+        LiteLLM --> data
+        Langfuse --> data
+        Worker --> data
+
+        subgraph data[" Data Layer "]
+            direction LR
+            PG[("PostgreSQL 17")]
+            CH[("ClickHouse 26")]
+            Redis[("Redis 7.4")]
+            MinIO[("MinIO")]
+        end
     end
 
-    subgraph Providers["☁️ LLM Providers"]
+    LiteLLM --> providers
+
+    subgraph providers[" ☁️ LLM Providers "]
+        direction LR
         Bedrock["AWS Bedrock"]
-        Vertex["Google Vertex AI"]
+        Vertex["Vertex AI"]
         Gemini["Gemini API"]
         OAI["OpenAI"]
         Anth["Anthropic"]
     end
-
-    CLI -->|":4000"| Caddy
-    Caddy --> LiteLLM
-    Caddy -->|":5002"| Langfuse
-    LiteLLM -->|"OTEL traces"| Langfuse
-    LiteLLM --> Providers
-    Langfuse --> PG
-    Langfuse --> CH
-    Langfuse --> Redis
-    Langfuse --> MinIO
-    Worker --> PG
-    Worker --> CH
-    Worker --> Redis
-    Worker --> MinIO
-    LiteLLM --> PG
-    LiteLLM --> Redis
 ```
 
 <br>
