@@ -1,0 +1,285 @@
+# Shared environment blocks
+x-langfuse-clickhouse: &langfuse-clickhouse
+  CLICKHOUSE_MIGRATION_URL: clickhouse://gateway-clickhouse:9000
+  CLICKHOUSE_URL: http://gateway-clickhouse:8123
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+x-langfuse-s3: &langfuse-s3
+  LANGFUSE_USE_AZURE_BLOB: "false"
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://gateway-minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://gateway-minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+x-langfuse-redis: &langfuse-redis
+  REDIS_HOST: gateway-redis
+  REDIS_PORT: "6379"
+
+x-langfuse-common: &langfuse-common
+  DATABASE_URL: ${DATABASE_URL}
+  DIRECT_URL: ${DATABASE_URL}
+  SALT: ${SALT}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+  TELEMETRY_ENABLED: "false"
+  LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+
+x-logging-standard: &logging-standard
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-logging-small: &logging-small
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-logging-tiny: &logging-tiny
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+# Services
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: gateway-caddy
+    ports:
+      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:5002:5002"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped
+    logging: *logging-small
+    mem_limit: 128m
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /data
+      - /config
+    networks: [gateway]
+    depends_on:
+      litellm:
+        condition: service_healthy
+      langfuse:
+        condition: service_healthy
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-v1.81.14-stable
+    container_name: gateway-litellm
+    init: true
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - UI_USERNAME=${UI_USERNAME}
+      - UI_PASSWORD=${UI_PASSWORD}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=http://gateway-langfuse:3000
+      - LANGFUSE_OTEL_HOST=http://gateway-langfuse:3000
+      # --- Provider credentials (uncomment what you use) ---
+      # AWS Bedrock
+      - AWS_PROFILE=${AWS_PROFILE:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      # Google Vertex AI
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+      # Gemini API key
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ./litellm/langfuse_enrich.py:/app/langfuse_enrich.py:ro
+      # --- Provider credential mounts (uncomment what you use) ---
+      # AWS Bedrock (writable — SSO needs token cache)
+      # - ~/.aws:/root/.aws
+      # Google Vertex AI
+      # - ~/.config/gcloud:/root/.config/gcloud:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    restart: unless-stopped
+    logging: *logging-standard
+    mem_limit: 1536m
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    networks: [gateway]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveness')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  langfuse:
+    image: docker.io/langfuse/langfuse:3
+    container_name: gateway-langfuse
+    init: true
+    environment:
+      <<: [*langfuse-common, *langfuse-clickhouse, *langfuse-s3, *langfuse-redis]
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://$(hostname -i):3000/api/public/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+    logging: *logging-standard
+    mem_limit: 1024m
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 15s
+    networks: [gateway]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:3
+    container_name: gateway-langfuse-worker
+    init: true
+    environment:
+      <<: [*langfuse-common, *langfuse-clickhouse, *langfuse-s3, *langfuse-redis]
+    restart: unless-stopped
+    logging: *logging-standard
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    networks: [gateway]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: gateway-postgres
+    environment:
+      - TZ=UTC
+      - PGTZ=UTC
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - gateway_db_data:/var/lib/postgresql/data
+    shm_size: 256m
+    restart: unless-stopped
+    logging: *logging-small
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    networks: [gateway]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: gateway-redis
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - gateway_redis_data:/data
+    restart: unless-stopped
+    logging: *logging-tiny
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    networks: [gateway]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:26.2
+    container_name: gateway-clickhouse
+    user: "101:101"
+    environment:
+      - TZ=UTC
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    volumes:
+      - gateway_clickhouse_data:/var/lib/clickhouse
+      - gateway_clickhouse_logs:/var/log/clickhouse-server
+    restart: unless-stopped
+    logging: *logging-small
+    mem_limit: 1024m
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 15s
+    networks: [gateway]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio:
+    image: cgr.dev/chainguard/minio
+    container_name: gateway-minio
+    init: true
+    entrypoint: sh
+    command:
+      - -c
+      - "mkdir -p /data/langfuse && minio server --address ':9000' --console-address ':9001' /data"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:9090:9000"
+      - "127.0.0.1:9091:9001"
+    volumes:
+      - gateway_minio_data:/data
+    restart: unless-stopped
+    logging: *logging-small
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    networks: [gateway]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+networks:
+  gateway:
+    name: ai-gateway
+
+volumes:
+  gateway_db_data:
+  gateway_redis_data:
+  gateway_clickhouse_data:
+  gateway_clickhouse_logs:
+  gateway_minio_data:

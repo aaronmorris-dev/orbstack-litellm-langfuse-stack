@@ -1,0 +1,25 @@
+# Secrets
+.env
+*.pem
+*.key
+
+# LiteLLM
+litellm/config.yaml
+litellm/__pycache__/
+litellm/chatgpt/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

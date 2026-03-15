@@ -1,0 +1,104 @@
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true
+  store_prompts_in_spend_logs: false
+  maximum_spend_logs_retention_period: "30d"
+  proxy_batch_write_at: 10
+  database_connection_pool_limit: 10
+  allow_requests_on_db_unavailable: true
+
+litellm_settings:
+  callbacks: ["langfuse_enrich.proxy_handler_instance", "langfuse_otel"]
+  request_timeout: 600
+  num_retries: 3
+  retry_after: 1
+  set_verbose: false
+  json_logs: true
+  cache: true
+  cache_params:
+    type: redis
+    host: gateway-redis
+    port: 6379
+    ttl: 3600
+    supported_call_types:
+      - acompletion
+      - completion
+      - aembedding
+      - embedding
+
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 3
+  cooldown_time: 30
+  redis_host: gateway-redis
+  redis_port: 6379
+
+# ============================================================================
+# Model List — add your models below.
+# Copy this file to litellm/config.yaml and uncomment the providers you use.
+# Full reference: https://docs.litellm.ai/docs/providers
+# ============================================================================
+model_list:
+  # --- Workload aliases (map logical names to specific models) ---
+  # - model_name: coding-model
+  #   litellm_params:
+  #     model: bedrock/us.anthropic.claude-sonnet-4-6
+
+  # - model_name: fast-model
+  #   litellm_params:
+  #     model: vertex_ai/gemini-2.5-flash
+  #     vertex_project: your-gcp-project
+  #     vertex_location: us-central1
+
+  # --- AWS Bedrock ---
+  # Requires: AWS_PROFILE env var + ~/.aws mount in docker-compose.yaml
+  # - model_name: claude-sonnet-4-6
+  #   litellm_params:
+  #     model: bedrock/us.anthropic.claude-sonnet-4-6
+
+  # - model_name: claude-opus-4-6
+  #   litellm_params:
+  #     model: bedrock/us.anthropic.claude-opus-4-6-v1
+
+  # - model_name: claude-haiku-4-5
+  #   litellm_params:
+  #     model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+  # --- Google Vertex AI ---
+  # Requires: GOOGLE_APPLICATION_CREDENTIALS + ~/.config/gcloud mount
+  # - model_name: gemini-2.5-flash
+  #   litellm_params:
+  #     model: vertex_ai/gemini-2.5-flash
+  #     vertex_project: your-gcp-project
+  #     vertex_location: us-central1
+
+  # - model_name: gemini-2.5-pro
+  #   litellm_params:
+  #     model: vertex_ai/gemini-2.5-pro
+  #     vertex_project: your-gcp-project
+  #     vertex_location: us-central1
+
+  # --- Gemini API (key-based, no GCP project needed) ---
+  # Requires: GEMINI_API_KEY env var
+  # - model_name: gemini-2.5-flash
+  #   litellm_params:
+  #     model: gemini/gemini-2.5-flash
+
+  # --- OpenAI ---
+  # Requires: OPENAI_API_KEY env var
+  # - model_name: gpt-4o
+  #   litellm_params:
+  #     model: openai/gpt-4o
+
+  # --- Anthropic (direct API, not Bedrock) ---
+  # Requires: ANTHROPIC_API_KEY env var
+  # - model_name: claude-sonnet-4-6
+  #   litellm_params:
+  #     model: anthropic/claude-sonnet-4-6
+
+  # Placeholder model (remove after adding your own)
+  - model_name: echo
+    litellm_params:
+      model: openai/echo
+      api_base: https://httpbin.org/post

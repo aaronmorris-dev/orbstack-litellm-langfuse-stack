@@ -1,0 +1,28 @@
+# Caddy acts as the single entrypoint for host-side port binding.
+# Currently plain reverse-proxy only (no TLS, CORS, or rate limiting).
+# Value: consistent port mapping + room to add TLS/auth/rate-limiting later.
+{
+	grace_period 30s
+}
+
+:4000 {
+	log {
+		output stdout
+		format json
+	}
+	reverse_proxy gateway-litellm:4000 {
+		flush_interval -1
+		transport http {
+			dial_timeout 10s
+			response_header_timeout 600s
+		}
+	}
+}
+
+:5002 {
+	log {
+		output stdout
+		format json
+	}
+	reverse_proxy gateway-langfuse:3000
+}
