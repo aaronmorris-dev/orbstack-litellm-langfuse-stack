@@ -121,7 +121,8 @@ flowchart TD
 
         LiteLLM -.->|"OTEL traces"| Langfuse
 
-        LiteLLM --> data
+        LiteLLM --> PG
+        LiteLLM --> Redis
         Langfuse --> data
         Worker --> data
 
