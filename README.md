@@ -93,15 +93,19 @@ After `./scripts/start.sh` completes:
 
 ```mermaid
 flowchart TD
-    CLI["🖥️ CLI Tools\nClaude Code · Gemini CLI · OpenAI SDK"]
+    CLI["🖥️ CLI Tools
+Claude Code · Gemini CLI · OpenAI SDK"]
 
     CLI -->|":4000 · :5002"| Caddy
 
     subgraph compose[" Docker Compose Stack "]
-        Caddy["🔀 Caddy\nReverse Proxy · SSE"]
+        Caddy["🔀 Caddy
+Reverse Proxy · SSE"]
 
-        Caddy --> LiteLLM["⚙️ LiteLLM\nUnified LLM Proxy"]
-        Caddy --> Langfuse["📊 Langfuse\nObservability"]
+        Caddy --> LiteLLM["⚙️ LiteLLM
+Unified LLM Proxy"]
+        Caddy --> Langfuse["📊 Langfuse
+Observability"]
 
         LiteLLM -.->|"traces"| Langfuse
         Worker["⚙️ Langfuse Worker"]
@@ -335,10 +339,14 @@ See [`examples/transparent-routing.md`](examples/transparent-routing.md) for per
 
 ```mermaid
 flowchart LR
-    Key["🔑 Virtual Key\nalias · tags · user_id"] --> Enrich["langfuse_enrich.py\nRuns on every request"]
-    Enrich --> Name["Trace Name\nclaude"]
-    Enrich --> Session["Daily Session\nclaude-2026-03-14"]
-    Enrich --> Tags["Tags\n[claude]"]
+    Key["🔑 Virtual Key alias · tags · user_id"] --> Enrich["langfuse_enrich.py
+Runs on every request"]
+    Enrich --> Name["Trace Name
+claude"]
+    Enrich --> Session["Daily Session
+claude-2026-03-14"]
+    Enrich --> Tags["Tags
+[claude]"]
 ```
 
 Create virtual keys in [LiteLLM Admin](http://localhost:4000/ui):
