@@ -17,7 +17,7 @@ if [[ ! -f litellm/config.yaml ]]; then
   exit 1
 fi
 
-echo "Starting LiteLLM + Langfuse..."
+echo "Starting LiteLLM / Langfuse..."
 docker compose up -d
 
 echo "LiteLLM and Langfuse: Running."
